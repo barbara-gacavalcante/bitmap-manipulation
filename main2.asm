@@ -239,6 +239,6 @@ censurar:
     printf("\nFIM CENSURAR")
     
     pop ebp
-    ret
+    ret 4
 
 end start

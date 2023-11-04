@@ -28,7 +28,10 @@ include \masm32\macros\macros.asm
     arqsaid db 40 dup(0)
     fileBuffer db 1024 dup(0)
     larg dd 4 dup(0)
+    alt dd 4 dup(0)
     linhaBuffer db 6480 dup(0)
+    pixelBuffer dd 4 dup(0)
+    preto db 0
      
     newline db 0ah, 0h
 
@@ -46,8 +49,8 @@ include \masm32\macros\macros.asm
 .data?
     valorx DWORD ?
     valory DWORD ?
-    largura DWORD ?
-    altura DWORD ?
+    larguraCensura DWORD ?
+    alturaCensura DWORD ?
  
 ; -------------------------= MAIN =--------------------------
  
@@ -65,85 +68,164 @@ start:
     ; - arquivo de entrada
     invoke WriteConsole, outputHandle, addr msg0, sizeof msg0, addr contador, NULL
     invoke ReadConsole, inputHandle, addr arqent, sizeof arqent, addr contador, NULL
+    push offset arqent
+    call trataString
      
     ; - pegar entradas
     invoke WriteConsole, outputHandle, addr msg1, sizeof msg1, addr contador, NULL
     invoke ReadConsole, inputHandle, addr entrada, sizeof entrada, addr contador, NULL
+    push offset entrada 
+    call trataString
     invoke atodw, addr entrada
     mov valorx, eax
+    printf("\nvalorx: %d\n\n", valorx)
  
     invoke WriteConsole, outputHandle, addr msg2, sizeof msg2, addr contador, NULL
     invoke ReadConsole, inputHandle, addr entrada, sizeof entrada, addr contador, NULL
+    push offset entrada 
+    call trataString
     invoke atodw, addr entrada
     mov valory, eax
+    printf("\nvalor atual: %d\n\n", eax)
      
     invoke WriteConsole, outputHandle, addr msg3, sizeof msg3, addr contador, NULL
     invoke ReadConsole, inputHandle, addr entrada, sizeof entrada, addr contador, NULL
+    push offset entrada 
+    call trataString
     invoke atodw, addr entrada
-    mov largura, eax
+    mov larguraCensura, eax
+    printf("\nvalor atual: %d\n\n", eax)
     
     invoke WriteConsole, outputHandle, addr msg4, sizeof msg4, addr contador, NULL
     invoke ReadConsole, inputHandle, addr entrada, sizeof entrada, addr contador, NULL
+    push offset entrada 
+    call trataString
     invoke atodw, addr entrada
-    mov altura, eax
+    mov alturaCensura, eax
+    printf("\nvalor atual: %d\n\n", eax)
  
     invoke WriteConsole, outputHandle, addr msg5, sizeof msg5, addr contador, NULL
     invoke ReadConsole, inputHandle, addr arqsaid, sizeof arqsaid, addr contador, NULL
-    invoke WriteConsole, outputHandle, addr newline, sizeof newline, addr contador, NULL
+    push offset arqsaid
+    call trataString
  
-    ; - Tratamento da string do arquivo de entrada
-
-    mov esi, offset arqent
-tratamento:
-    mov al, [esi]
-    inc esi
-    cmp al, 13
-    jne tratamento
-    dec esi
-    xor al, al
-    mov [esi], al
-
-    inc count
-    cmp count, 2
-    je fimTrat
-    mov esi, 0
-    mov esi, offset arqsaid
-    jmp tratamento
-fimTrat:
+    invoke WriteConsole, outputHandle, addr newline, sizeof newline, addr contador, NULL
     
     invoke CreateFile, addr arqent, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
     mov fInHandle, eax
- 
+
     invoke CreateFile, addr arqsaid, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL          
     mov fOutHandle, eax
 
     invoke ReadFile, fInHandle, addr fileBuffer, 18, addr contador, NULL
     invoke WriteFile, fOutHandle, addr fileBuffer, 18, addr contador, NULL
+
     invoke ReadFile, fInHandle, addr fileBuffer, 4, addr contador, NULL
     mov eax, DWORD PTR [fileBuffer]
+    imul eax, 3
     mov larg, eax
-    invoke WriteFile, fOutHandle, addr fileBuffer, 4, addr contador, NULL
-    invoke ReadFile, fInHandle, addr fileBuffer, 32, addr contador, NULL
-    invoke WriteFile, fOutHandle, addr fileBuffer, 32, addr contador, NULL
+    printf("largura: %d ", larg)
 
-    mov ecx, 0 
+    invoke WriteFile, fOutHandle, addr fileBuffer, 4, addr contador, NULL
+    invoke ReadFile, fInHandle, addr fileBuffer, 4, addr contador, NULL
+    mov eax, DWORD PTR [fileBuffer]
+    mov alt, eax
+    printf("altura: %d ", alt)
+    invoke WriteFile, fOutHandle, addr fileBuffer, 4, addr contador, NULL
+
+    invoke ReadFile, fInHandle, addr fileBuffer, 28, addr contador, NULL
+    invoke WriteFile, fOutHandle, addr fileBuffer, 28, addr contador, NULL
+
+    mov ecx, 0
+    mov edi, 0
+    mov esi, 0
+    mov edx, 0
+
+    mov ebx, alt
+    sub ebx, valory     
+    sub ebx, alturaCensura  ; coordenada que começa a censura
 
 lerPixels:
-    invoke ReadFile, fInHandle, addr linhaBuffer, sizeof linhaBuffer, addr contador, NULL
-    
+    invoke ReadFile, fInHandle, addr linhaBuffer, larg, addr contador, NULL
     cmp contador, 0
-    jz fimLerPixels     ; jump if zero (sem bytes a serem escritos)
-    
+    je fimLerPixels 
+
+    inc ecx
+    cmp ecx, ebx
+    jg copyPixels
+
+
+    push offset linhaBuffer
+    mov eax, larguraCensura
+    imul eax, 3
+    mov larguraCensura, eax
+    push larguraCensura
+    mov eax, valorx
+    imul eax, 3
+    mov valorx, eax
+    push valorx
+    printf("\nvalorx %d largura da censura %d\n", valorx, larguraCensura) 
+    call censurar
+    jmp copyPixels
+
+
+copyPixels:
     invoke WriteFile, fOutHandle, addr linhaBuffer, contador, addr contador, NULL
-    
-    add ecx, contador
-    
+
     jmp lerPixels
+
 fimLerPixels:
+
+    printf("\nvalorx: %d, valory: %d, altura: %d, largura: %d, ecx: %d\n\n", valorx, valory, alturaCensura, larguraCensura, ecx)
           
     invoke CloseHandle, fInHandle
     invoke CloseHandle, fOutHandle
  
  
     invoke ExitProcess, 0
+
+
+    ; - Tratamento das strings 
+    
+trataString:
+    pop ebx ; retorno
+    pop esi ; endereço da string
+tratamento:
+    mov al, [esi] 
+    inc esi 
+    cmp al, 13
+    jne tratamento 
+    dec esi 
+    xor al, al 
+    mov [esi], al 
+    jmp ebx 
+
+censurar:
+    push ebp
+    mov ebp, esp
+
+    mov edi, [ebp-12]   ; linhaBuffer
+    mov esi, DWORD PTR [ebp-8]    ; larguraCensura
+    mov edx, DWORD PTR [ebp-4]    ; valorx
+    printf("\n COMECO CENSURAR")
+
+    mov eax, 0
+    cmp eax, esi
+    jle fill
+    inc eax
+
+    fill:
+        inc eax 
+        mov al, [edi + edx]
+        mov bl, [edi + edx + 1]
+        mov dl, [edi + edx + 2]
+        mov al, 0
+        mov bl, 0
+        mov dl, 0
+                                                                                                                                                                 
+    printf("\nFIM CENSURAR")
+    
+    pop ebp
+    ret
+
 end start

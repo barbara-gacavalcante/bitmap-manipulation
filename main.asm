@@ -156,9 +156,6 @@ lerPixels:
 
 
     push offset linhaBuffer
-    mov eax, larguraCensura
-    imul eax, 3
-    mov larguraCensura, eax
     push larguraCensura
     mov eax, valorx
     imul eax, 3
@@ -212,16 +209,17 @@ censurar:
     mov eax, 0
     cmp eax, esi
     jle fill
-    inc eax
 
     fill:
         inc eax 
-        mov al, [edi + edx]
-        mov bl, [edi + edx + 1]
-        mov dl, [edi + edx + 2]
-        mov al, 0
-        mov bl, 0
-        mov dl, 0
+        mov byte ptr [edi+edx], 0
+        mov byte ptr [edi+edx+1], 0
+        mov byte ptr [edi+edx+2], 0
+        add edi, 3
+        ;mov al, [edi]
+        ;mov al, 0
+        ;jmp fill
+
                                                                                                                                                                  
     printf("\nFIM CENSURAR")
     

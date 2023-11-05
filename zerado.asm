@@ -27,20 +27,18 @@ include \masm32\macros\macros.asm
     arqent db 40 dup(0)
     arqsaid db 40 dup(0)
     fileBuffer db 1024 dup(0)
+    linhaBuffer db 6480 dup(0)
+    linhabranca db 6480 dup(0)
+    newline db 0ah, 0h
+    preto db 0
+    
     larg dd 4 dup(0)
     alt dd 4 dup(0)
     
-    newline db 0ah, 0h
-
-    linhaBuffer db 6480 dup(0)
-
-    linhabranca db 6480 dup(0)
-  
     fInHandle dd 0
     fOutHandle dd 0
     inputHandle dd 0
     outputHandle dd 0
-     
     contador dd 0 ; variavel caracteres escritos
       
 ; ----------------- variaveis declaradas -----------------
@@ -146,51 +144,76 @@ start:
 
     ; ----------- 
 
-    mov eax, valory
-    mov iniCens, eax
-    add eax, alturaCensura
+    mov eax, alt
+    sub eax, valory
     mov fimCens, eax
+    sub eax, alturaCensura
+    mov iniCens, eax
     printf("\ninicio censura: %d", iniCens)
     printf("\nfim censura: %d", fimCens)
     mov ecx, alt
     mov linha, ecx
 
+    mov eax, valorx
+    imul eax, 3
+    mov valorx, eax
+    printf("comeca em: %d", valorx)
+    mov eax, larguraCensura
+    imul eax, 3
+    add eax, valorx
+    mov larguraCensura, eax
+    printf("termina em: %d", larguraCensura)
+    
 lerPixels:
     invoke ReadFile, fInHandle, addr linhaBuffer, larg, addr contador, NULL
     cmp contador, 0
     je fimLerPixels 
 
     mov ecx, linha
-    
-    cmp iniCens, ecx
-    sub linha, 1
-    jl copyPixels
-    cmp fimCens, ecx
-    jge copyPixels
 
-    printf("linhas censura")
-    cmp fimCens, ecx
-    jl apagaPixels
+    printf("\nlinhas censura")
+    
+    cmp ecx, fimCens
+    jg copyPixels
+    cmp ecx, iniCens
+    jl copyPixels
+
+    printf("\nlinhas censura")
+    mov edx, 0
+    cmp ecx, fimCens
+    jle linhaCensura
+    jmp copyPixels
 
 copyPixels:
     invoke WriteFile, fOutHandle, addr linhaBuffer, larg, addr contador, NULL
-    printf("contador1: %d", linha)
+    sub linha, 1
     jmp lerPixels
 
-apagaPixels:
-    printf("apaga")
-    invoke WriteFile, fOutHandle, addr linhabranca, larg, addr contador, NULL
-    ;add ecx,1
-    printf("contador2: %d", linha)
-    jmp lerPixels
+linhaCensura:
+    printf("\n entrou %d", edx)
+    mov esi, offset linhaBuffer
+
+    cmp valorx, edx
+    jl inalterado
+    cmp larguraCensura, edx
+    jge inalterado
+    cmp valorx, edx
+    jge censurado
+
+    ;mov eax, larguraCensura
+    ;sub eax, valorx
+    ;cmp eax, edx
     
+    printf("\ncontador2: %d", linha)
+    
+    jmp copyPixels
+
 fimLerPixels:
 
     printf("\nvalorx: %d, valory: %d, altura: %d, largura: %d, ecx: %d\n\n", valorx, valory, alturaCensura, larguraCensura, ecx)
           
     invoke CloseHandle, fInHandle
     invoke CloseHandle, fOutHandle
- 
  
     invoke ExitProcess, 0
 
@@ -210,5 +233,16 @@ tratamento:
     mov [esi], al 
     jmp ebx 
 
-
+inalterado:
+    add edx, 1
+    cmp larg, edx
+    je copyPixels
+    jmp linhaCensura
+    
+censurado:
+    mov al, esi[edx]
+    mov al, 0
+    add edx, 1
+    jmp linhaCensura
+  
 end start

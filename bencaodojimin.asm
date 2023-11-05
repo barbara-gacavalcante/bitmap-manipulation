@@ -27,18 +27,18 @@ include \masm32\macros\macros.asm
     arqent db 40 dup(0)
     arqsaid db 40 dup(0)
     fileBuffer db 1024 dup(0)
+    linhaBuffer db 6480 dup(0)
+    linhabranca db 6480 dup(0)
+    newline db 0ah, 0h
+    preto db 0
+    
     larg dd 4 dup(0)
     alt dd 4 dup(0)
-    linhaBuffer db 6480 dup(0)
-    pixelBuffer dd 4 dup(0)
-     
-    newline db 0ah, 0h
-
+    
     fInHandle dd 0
     fOutHandle dd 0
     inputHandle dd 0
     outputHandle dd 0
-     
     contador dd 0 ; variavel caracteres escritos
       
 ; ----------------- variaveis declaradas -----------------
@@ -80,7 +80,6 @@ start:
     call trataString
     invoke atodw, addr entrada
     mov valorx, eax
-    printf("\nvalorx: %d\n\n", valorx)
  
     invoke WriteConsole, outputHandle, addr msg2, sizeof msg2, addr contador, NULL
     invoke ReadConsole, inputHandle, addr entrada, sizeof entrada, addr contador, NULL
@@ -88,7 +87,6 @@ start:
     call trataString
     invoke atodw, addr entrada
     mov valory, eax
-    printf("\nvalor atual: %d\n\n", eax)
      
     invoke WriteConsole, outputHandle, addr msg3, sizeof msg3, addr contador, NULL
     invoke ReadConsole, inputHandle, addr entrada, sizeof entrada, addr contador, NULL
@@ -96,7 +94,6 @@ start:
     call trataString
     invoke atodw, addr entrada
     mov larguraCensura, eax
-    printf("\nvalor atual: %d\n\n", eax)
     
     invoke WriteConsole, outputHandle, addr msg4, sizeof msg4, addr contador, NULL
     invoke ReadConsole, inputHandle, addr entrada, sizeof entrada, addr contador, NULL
@@ -104,7 +101,6 @@ start:
     call trataString
     invoke atodw, addr entrada
     mov alturaCensura, eax
-    printf("\nvalor atual: %d\n\n", eax)
 
     
     ; --------- arquivo de saida
@@ -115,7 +111,7 @@ start:
  
     invoke WriteConsole, outputHandle, addr newline, sizeof newline, addr contador, NULL
 
-    ; --------- funcoes de leitura e escrita de arquivo
+    ; --------- funcoes de leitura e criacao de arquivo
     
     invoke CreateFile, addr arqent, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
     mov fInHandle, eax
@@ -134,6 +130,8 @@ start:
     mov larg, eax
     printf("largura: %d ", larg)
 
+    
+
     invoke WriteFile, fOutHandle, addr fileBuffer, 4, addr contador, NULL
     invoke ReadFile, fInHandle, addr fileBuffer, 4, addr contador, NULL
     mov eax, DWORD PTR [fileBuffer]
@@ -145,18 +143,26 @@ start:
     invoke WriteFile, fOutHandle, addr fileBuffer, 28, addr contador, NULL
 
     ; ----------- 
-    
-    mov ecx, 0
-   
 
-    mov eax, valory
-    mov iniCens, eax
-    add eax, alturaCensura
+    mov eax, alt
+    sub eax, valory
     mov fimCens, eax
+    sub eax, alturaCensura
+    mov iniCens, eax
     printf("\ninicio censura: %d", iniCens)
     printf("\nfim censura: %d", fimCens)
     mov ecx, alt
     mov linha, ecx
+
+    mov eax, valorx
+    imul eax, 3
+    mov valorx, eax
+    printf("comeca em: %d", valorx)
+    mov eax, larguraCensura
+    imul eax, 3
+    add eax, valorx
+    mov larguraCensura, eax
+    printf("termina em: %d", larguraCensura)
     
 lerPixels:
     invoke ReadFile, fInHandle, addr linhaBuffer, larg, addr contador, NULL
@@ -165,20 +171,24 @@ lerPixels:
 
     mov ecx, linha
     
-    cmp iniCens, ecx
+    cmp ecx, iniCens
     jl copyPixels
-    cmp fimCens, ecx
+    cmp ecx, fimCens
     jge copyPixels
 
-    printf("linhas censura")
-    cmp fimCens, ecx
-    jl censurar
-
+    printf("\nlinhas censura")
+    cmp ecx, iniCens
+    jg linhaCensura
 
 copyPixels:
-    invoke WriteFile, fOutHandle, addr linhaBuffer, contador, addr contador, NULL
-    jmp lerPixels
+    invoke WriteFile, fOutHandle, addr linhaBuffer, larg, addr contador, NULL
     sub linha, 1
+    jmp lerPixels
+
+linhaCensura:
+    invoke WriteFile, fOutHandle, addr linhabranca, larg, addr contador, NULL
+    sub linha, 1
+    jmp lerPixels
 
 fimLerPixels:
 
@@ -187,15 +197,14 @@ fimLerPixels:
     invoke CloseHandle, fInHandle
     invoke CloseHandle, fOutHandle
  
- 
     invoke ExitProcess, 0
 
 
-    ; - Tratamento das strings 
+    ; ------ Tratamento das strings 
     
 trataString:
     pop ebx ; retorno
-    pop esi ; endereço da string
+    pop esi ; endereco da string
 tratamento:
     mov al, [esi] 
     inc esi 
@@ -205,38 +214,5 @@ tratamento:
     xor al, al 
     mov [esi], al 
     jmp ebx 
-
-censurar:
-    push ebp
-    mov ebp, esp
-
-    mov edi, [ebp-12]   ; linhaBuffer
-    mov esi, DWORD PTR [ebp-8]    ; larguraCensura
-    mov edx, DWORD PTR [ebp-4]    ; valorx
-    printf("\n COMECO CENSURAR")
-
-    mov eax, 0
-    cmp eax, esi
-    jle fill
-
-    fill:
-        inc eax 
-        mov byte ptr [edi+edx], 0
-        mov byte ptr [edi+edx+1], 0
-        mov byte ptr [edi+edx+2], 0
-        add edi, 3
-        ;mov al, [edi+edx]
-        ;mov al, 0
-        ;mov al, [edi+edx+1]
-        ;mov al, 0
-        ;mov al, [edi+edx+2]
-        ;mov al, 0
-        ;jmp fill
-
-                                                                                                                                                                 
-    printf("\nFIM CENSURAR")
-    
-    pop ebp
-    ret 4
-
+  
 end start

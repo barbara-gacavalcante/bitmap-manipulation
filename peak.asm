@@ -30,7 +30,7 @@ include \masm32\macros\macros.asm
     linhaBuffer db 6480 dup(0)
     linhabranca db 6480 dup(0)
     newline db 0ah, 0h
-    preto db 3 dup(0)
+    preto db 2 dup(0)
     
     larg dd 4 dup(0)
     alt dd 4 dup(0)
@@ -44,6 +44,7 @@ include \masm32\macros\macros.asm
 ; ----------------- variaveis declaradas -----------------
  
 .data?
+    resto DWORD ?
     pixel DWORD ?
     linha DWORD ?
     iniCens DWORD ?
@@ -180,7 +181,6 @@ lerPixels:
     cmp ecx, fimCens
     jge copyPixels
 
-    sub linha, 1
     printf("\nlinhas censura")
     cmp ecx, iniCens
     jg linhaCensura
@@ -220,22 +220,27 @@ linhaCensura:
     printf("\n linha %d entrou %d", linha, pixel)
     mov ebx, pixel
     cmp ebx, larguraCensura
-    jg inalterado
+    jge inalterado
     cmp ebx, valorx
-    jle inalterado
+    jle antescensura
     cmp ebx, larguraCensura
     jl censurado
     
 inalterado:
-    invoke WriteFile, fOutHandle, addr linhaBuffer, 3, addr contador, NULL
+    mov eax, larg
+    sub eax, contador
+    mov resto, eax
+    invoke WriteFile, fOutHandle, addr linhaBuffer, resto, addr contador, NULL
+    sub linha, 1
+    jmp lerPixels
+
+antescensura:
+    invoke WriteFile, fOutHandle, addr linhaBuffer, sizeof preto, addr contador, NULL
     add pixel, 3
-    mov ebx, pixel
-    cmp ebx, larguraCensura
-    jge lerPixels
     jmp linhaCensura
     
 censurado:
-    invoke WriteFile, fOutHandle, addr preto, 3, addr contador, NULL
+    invoke WriteFile, fOutHandle, addr preto, sizeof preto, addr contador, NULL
     add pixel, 3
     jmp linhaCensura
   

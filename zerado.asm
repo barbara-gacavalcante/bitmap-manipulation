@@ -29,9 +29,12 @@ include \masm32\macros\macros.asm
     fileBuffer db 1024 dup(0)
     larg dd 4 dup(0)
     alt dd 4 dup(0)
+    
+    newline db 0ah, 0h
+
     linhaBuffer db 6480 dup(0)
 
-    newline db 0ah, 0h
+    linhabranca db 6480 dup(0)
   
     fInHandle dd 0
     fOutHandle dd 0
@@ -43,6 +46,9 @@ include \masm32\macros\macros.asm
 ; ----------------- variaveis declaradas -----------------
  
 .data?
+    linha DWORD ?
+    iniCens DWORD ?
+    fimCens DWORD ?
     valorx DWORD ?
     valory DWORD ?
     larguraCensura DWORD ?
@@ -107,7 +113,7 @@ start:
  
     invoke WriteConsole, outputHandle, addr newline, sizeof newline, addr contador, NULL
 
-    ; --------- funcoes de leitura e criação de arquivo
+    ; --------- funcoes de leitura e criacao de arquivo
     
     invoke CreateFile, addr arqent, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
     mov fInHandle, eax
@@ -126,6 +132,8 @@ start:
     mov larg, eax
     printf("largura: %d ", larg)
 
+    
+
     invoke WriteFile, fOutHandle, addr fileBuffer, 4, addr contador, NULL
     invoke ReadFile, fInHandle, addr fileBuffer, 4, addr contador, NULL
     mov eax, DWORD PTR [fileBuffer]
@@ -138,19 +146,44 @@ start:
 
     ; ----------- 
 
+    mov eax, valory
+    mov iniCens, eax
+    add eax, alturaCensura
+    mov fimCens, eax
+    printf("\ninicio censura: %d", iniCens)
+    printf("\nfim censura: %d", fimCens)
+    mov ecx, alt
+    mov linha, ecx
+
 lerPixels:
     invoke ReadFile, fInHandle, addr linhaBuffer, larg, addr contador, NULL
     cmp contador, 0
     je fimLerPixels 
 
-    jmp copyPixels
+    mov ecx, linha
+    
+    cmp iniCens, ecx
+    sub linha, 1
+    jl copyPixels
+    cmp fimCens, ecx
+    jge copyPixels
 
+    printf("linhas censura")
+    cmp fimCens, ecx
+    jl apagaPixels
 
 copyPixels:
-    invoke WriteFile, fOutHandle, addr linhaBuffer, contador, addr contador, NULL
-
+    invoke WriteFile, fOutHandle, addr linhaBuffer, larg, addr contador, NULL
+    printf("contador1: %d", linha)
     jmp lerPixels
 
+apagaPixels:
+    printf("apaga")
+    invoke WriteFile, fOutHandle, addr linhabranca, larg, addr contador, NULL
+    ;add ecx,1
+    printf("contador2: %d", linha)
+    jmp lerPixels
+    
 fimLerPixels:
 
     printf("\nvalorx: %d, valory: %d, altura: %d, largura: %d, ecx: %d\n\n", valorx, valory, alturaCensura, larguraCensura, ecx)
@@ -162,11 +195,11 @@ fimLerPixels:
     invoke ExitProcess, 0
 
 
-    ; - Tratamento das strings 
+    ; ------ Tratamento das strings 
     
 trataString:
     pop ebx ; retorno
-    pop esi ; endereço da string
+    pop esi ; endereco da string
 tratamento:
     mov al, [esi] 
     inc esi 

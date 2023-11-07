@@ -174,7 +174,6 @@ lerPixels:
     ; --- linha atual
     mov ebx, alt
 
-    printf("\n ebx: %d", alt)
     ; --- antes ou depois da censura copia a linha lida
     cmp iniCens, ebx
     jle copyPixels
@@ -224,16 +223,14 @@ censurar:
     push ebx
     mov ebp, esp
 
-    ; Parametros
-    
     mov edi, [ebp+20]           ; linhaBuffer
     mov esi, DWORD PTR [ebp+16]  ; valorx
     mov ebx, DWORD PTR [ebp+12]  ; larguraCensura
+    ; adiciona o deslocamento no ponteiro da linha
     add edi, valorx
 
 loopInicial:
     mov eax, count2
-
     cmp count2, esi
     jl pedaco
     cmp count2, esi
@@ -250,10 +247,10 @@ censurarLoop:
     jge censurarFim
 
     mov eax, count2
-    
+
+    ; reescreve bytes para preto
     mov byte ptr [edi], 0
     add edi, 1
-
     add count2, 1
     
     jmp censurarLoop

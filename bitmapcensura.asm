@@ -1,6 +1,3 @@
-; Ana Paula Chaves Cabral - 20220096552
-; Barbara Geovanna Alves Cavalcante - 20220055021
-
 .686
 .model flat, stdcall
 option casemap :none
@@ -17,7 +14,7 @@ includelib \masm32\lib\masm32.lib
 
  
 .data
-    ; --- arrays de saida
+    ; --- output message arrays
     msg0 db "Digite o nome do arquivo de entrada:", 0ah, 0h
     msg1 db "Digite a coordenada X:", 0ah, 0h
     msg2 db "Digite a coordenada Y:", 0ah, 0h
@@ -26,16 +23,16 @@ includelib \masm32\lib\masm32.lib
     msg5 db "Digite o nome do arquivo de saida:", 0ah, 0h
     newline db 0ah, 0h
 
-    ; --- arrays de entrada
+    ; --- input arrays
     entrada db 5 dup(0)
     arqent db 40 dup(0)
     arqsaid db 40 dup(0)
     
-    ; --- arrays de leitura do arquivo
+    ; --- read file arrays
     fileBuffer db 1024 dup(0) ; para o cabecalho
     linhaBuffer db 6480 dup(0) ; para a linha
 
-    ; --- handles de arquivo e console
+    ; --- file and console handles
     fInHandle dd 0
     fOutHandle dd 0
     inputHandle dd 0
@@ -46,7 +43,7 @@ includelib \masm32\lib\masm32.lib
     larg dd 4 dup(0)
     alt dd 4 dup(0)
     
-    contador dd 0 ; variavel caracteres escritos
+    contador dd 0 ; counting written characters
  
 .data?
     linha DWORD ?
@@ -57,7 +54,7 @@ includelib \masm32\lib\masm32.lib
     larguraCensura DWORD ?
     alturaCensura DWORD ?
  
-; ------------------------------= COPIA E CENSURA BITMAP =------------------------------
+; ------------------------------= BITMAP COPY AND CENSOR  =------------------------------
  
 .code
 
@@ -69,14 +66,14 @@ start:
     invoke GetStdHandle, STD_INPUT_HANDLE
     mov inputHandle, eax
      
-    ; --- arquivo de entrada
+    ; --- input file
     
     invoke WriteConsole, outputHandle, addr msg0, sizeof msg0, addr contador, NULL
     invoke ReadConsole, inputHandle, addr arqent, sizeof arqent, addr contador, NULL
     push offset arqent
     call trataString
      
-    ; --- recebe entradas para as variaveis dword
+    ; --- input entries of dword variables
     
     invoke WriteConsole, outputHandle, addr msg1, sizeof msg1, addr contador, NULL
     invoke ReadConsole, inputHandle, addr entrada, sizeof entrada, addr contador, NULL
@@ -106,7 +103,7 @@ start:
     invoke atodw, addr entrada
     mov alturaCensura, eax
 
-    ; --- nome do arquivo de saida
+    ; --- output file name
     
     invoke WriteConsole, outputHandle, addr msg5, sizeof msg5, addr contador, NULL
     invoke ReadConsole, inputHandle, addr arqsaid, sizeof arqsaid, addr contador, NULL
@@ -115,7 +112,7 @@ start:
  
     invoke WriteConsole, outputHandle, addr newline, sizeof newline, addr contador, NULL
 
-    ; --- funcoes de leitura e escrita de arquivo
+    ; --- reading and writing file functions
     
     invoke CreateFile, addr arqent, GENERIC_READ, 0, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL
     mov fInHandle, eax
@@ -123,7 +120,7 @@ start:
     invoke CreateFile, addr arqsaid, GENERIC_WRITE, 0, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL          
     mov fOutHandle, eax
 
-    ; --- leitura e escrita do cabecalho
+    ; --- reading and writing bmp header
 
     invoke ReadFile, fInHandle, addr fileBuffer, 18, addr contador, NULL
     invoke WriteFile, fOutHandle, addr fileBuffer, 18, addr contador, NULL
@@ -145,23 +142,23 @@ start:
 
     jmp defVariaveis
 
-    ; --- Setando as variaveis
+    ; --- variables
 
 defVariaveis:
-    ; --- inicio da censura em y altura do arquivo menos valor y
+    ; --- censor start y height minus y
     mov ebx, alt
     sub ebx, valory
     sub ebx, 1
     mov iniCens, ebx
-    ; --- fim da censura em y eh inicio menos altura da censura
+    ; --- censoring ends
     sub ebx, alturaCensura
     mov fimCens, ebx
-    ; --- fim da largura da censura em bytes
+    ; --- censoring end lenght in bytes
     mov ebx, larguraCensura
     ;add ebx, valorx
     imul ebx, 3
     mov larguraCensura, ebx
-    ; --- comeco da censura eixo x em bytes
+    ; --- censoring start x axis in bytes
     mov ebx, valorx
     imul ebx, 3
     mov valorx, ebx
@@ -174,22 +171,22 @@ lerPixels:
     cmp contador, 0
     je fimLerPixels 
 
-    ; --- linha atual
+    ; --- current line
     mov ebx, alt
 
-    ; --- antes ou depois da censura copia a linha lida
+    ; --- before or after the censored part, copy read lines
     cmp iniCens, ebx
     jle copyPixels
     cmp fimCens, ebx
     jge copyPixels
 
-    ; --- entre a censura chama a funcao
+    ; --- calls function in censoring part
     push offset linhaBuffer
     push valorx
     push larguraCensura
     call censurar
 
-    ; --- copia linha censurada
+    ; --- copy censored line
     jmp copyPixels
 
 
@@ -206,11 +203,11 @@ fimLerPixels:
  
     invoke ExitProcess, 0
 
-    ; ------ Tratamento das strings 
+; --- String treatment
     
 trataString:
-    pop ebx ; retorno
-    pop esi ; endereco da string
+    pop ebx ; return
+    pop esi ; string adress
 tratamento:
     mov al, [esi] 
     inc esi 
@@ -221,6 +218,7 @@ tratamento:
     mov [esi], al 
     jmp ebx 
 
+; --- Censoring function
 censurar:    
     push ebp
     push ebx
@@ -229,7 +227,7 @@ censurar:
     mov edi, [ebp+20]           ; linhaBuffer
     mov esi, DWORD PTR [ebp+16]  ; valorx
     mov ebx, DWORD PTR [ebp+12]  ; larguraCensura
-    ; adiciona o deslocamento no ponteiro da linha
+    ; adds to the line pointer
     add edi, valorx
     mov eax, count2
 
@@ -239,7 +237,7 @@ censurarLoop:
 
     mov eax, count2
 
-    ; reescreve bytes para preto
+    ; rewrites bytes in black
     mov byte ptr [edi], 0
     add edi, 1
     add count2, 1
